@@ -4,7 +4,7 @@ class Blockchain {
 
     constructor() {
         this.chain = [];
-        this.create_block(1, '0', '');
+        this.create_block(1, '0', null);
     }
 
     create_block(nonce, previous_hash, data) {

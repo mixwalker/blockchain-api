@@ -1,76 +1,80 @@
 import { Router } from 'express';
 import Blockchain from '../src/blockchain.mjs';
 import fetch from 'node-fetch';
-const blockchain = new Blockchain();
+
+let blockchain = null;
+let blockchainEvent = {};
+
+function selectEvent(event) {
+    if (!blockchainEvent[event]) blockchainEvent[event] = new Blockchain();
+    return blockchain = blockchainEvent[event];
+}
 
 const publicapi = Router();
 
+// api/
 publicapi.get('/', (req, res) => res.json({ error: false }));
 
-publicapi.get('/get_chain', (req, res) => {
+// api/get_chain
+publicapi.post('/get_chain', (req, res) => {
+
+    const { elecId } = req.body;
+    if (!elecId) return res.status(500).json({ error: true, msg: 'not found event' });
+    selectEvent(elecId);
+
     return res.json({
+        "elecId": elecId,
         "chain": blockchain.chain,
         "length": blockchain.chain.length
     });
+
 });
 
-publicapi.get('/get_chain/getby_elecid', async(req, res) => {
-    let { elecId } = req.body;
-    let blockList = blockchain.chain.filter((block) =>
-        block.data.elecId == elecId
-    )
-    if (blockList.length === 0) {
-        return res.status(500).json({
-            error: "No Data"
-        })
-    }
-    for (let block of blockList) {
-        const { elecId, candiId, studentId } = block.data;
-        block.data = {};
-        const resStudent = await fetch(`http://localhost:8080/sorrawitj/api/student/${studentId}`);
-        const student = await resStudent.json()
-        const { prefix, firstName, lastName, studentCode } = student
-        const name = `${prefix}${firstName} ${lastName}`;
-        block.data.student = { studentId, studentCode, name };
+// api/mining
+publicapi.post('/mining', async(req, res) => {
 
-        const resElection = await fetch(`http://localhost:8080/sorrawitj/api/election/${elecId}`);
-        const election = await resElection.json()
-        const { elecName } = election
-        block.data.election = { elecId, elecName };
+    const { elecId, ...data } = req.body;
+    if (!elecId) return res.status(500).json({ error: true, msg: 'not found event' });
+    selectEvent(elecId);
 
-        const resCandidate = await fetch(`http://localhost:8080/sorrawitj/api/student_candidate/findbycandidate/${candiId}`);
-        const candidate = await resCandidate.json()
-        let cadistudent = candidate[0].student
-        block.data.candidate = {
-            candiId,
-            name: `${cadistudent.prefix}${cadistudent.firstName} ${cadistudent.lastName}`
-        };
+    // const [studentRes, candidateRes] = await Promise.all([
+    //     fetch(`http://localhost:8080/sorrawitj/api/student/${data.studentId}`),
+    //     fetch(`http://localhost:8080/sorrawitj/api/student_candidate/findbycandidate/${data.candiId}`)
+    // ]);
 
-    }
-    return res.json({
-        "chain": blockList,
-        "length": blockList.length
-    });
-});
+    // const student = await studentRes.json();
+    // const candidate = await candidateRes.json();
 
-publicapi.post('/mining', (req, res) => {
+    // const { prefix, firstName, lastName, studentCode, studentId } = student;
+    // const name = `${prefix}${firstName} ${lastName}`;
+    // data.student = { studentId, studentCode, name };
 
-    let data = req.body;
+    // let cadistudent = candidate[0].student;
+    // data.candidate = {
+    //     candiId: data.candiId,
+    //     name: `${cadistudent.prefix}${cadistudent.firstName} ${cadistudent.lastName}`
+    // };
+
+    // delete data.candiId;
+    // delete data.studentId;
 
     let previous_block = blockchain.get_pervious_block();
     let previous_nonce = previous_block['nonce'];
     let nonce = blockchain.proof_of_work(previous_nonce);
     let previous_hash = previous_block.hash;
     blockchain.create_block(nonce, previous_hash, data);
-    return res.json({});
+    return res.json({ error: false });
 });
 
+// api/check_chain
 publicapi.get('/check_chain', (req, res) => {
+
+    const { elecId } = req.body;
+    if (!elecId) return res.status(500).json({ error: true, msg: 'not found event' });
+    selectEvent(elecId);
+
     let check = blockchain.is_chain_valid(blockchain.chain);
     return res.json({ message: check ? 'BlockChain Vaild' : 'BlockChain have problem' });
 });
-
-
-
 
 export default publicapi;
