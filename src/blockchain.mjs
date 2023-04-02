@@ -2,21 +2,15 @@ import crypto from 'crypto';
 
 class Blockchain {
 
-    constructor() {
-        this.chain = [];
-        this.create_block(1, '0', null);
-    }
-
-    create_block(nonce, previous_hash, data) {
+    create_block(nonce, previous_hash, data,hash) {
         let block = {
             index: this.chain.length + 1,
             timestemp: new Date(),
             nonce: nonce,
             data: data,
-            previous_hash: previous_hash
+            previous_hash: previous_hash,
+            hash: hash
         }
-        block['hash'] = this.hash(block);
-        this.chain.push(block);
         return block;
     }
 
@@ -33,7 +27,7 @@ class Blockchain {
         let new_nonce = 1;
         while (1) {
             let hashoperation = crypto.createHash('sha256').update((new_nonce ** 2 - previous_nonce ** 2).toString()).digest('hex');
-            if (hashoperation.slice(0, 4) === '0000') return new_nonce;
+            if (hashoperation.slice(0, 4) === '0000') return { new_nonce: new_nonce , hash: hashoperation};
             new_nonce += 1;
         }
     }
